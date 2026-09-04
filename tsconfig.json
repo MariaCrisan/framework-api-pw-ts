@@ -9,5 +9,5 @@
     "skipLibCheck": true,
     "types": ["node", "@playwright/test"]
   },
-  "include": ["src/**/*.ts", "steps/**/*.ts", "playwright.config.ts", "playwright-bdd.config.ts"]
+  "include": ["src/**/*.ts", "features/steps/**/*.ts", "steps/**/*.ts", "playwright.config.ts", "playwright-bdd.config.ts"]
 }
