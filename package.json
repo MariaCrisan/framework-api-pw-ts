@@ -4,11 +4,12 @@
   "private": true,
   "description": "A composable TypeScript and Playwright API test framework skeleton.",
   "scripts": {
-    "test": "playwright test",
-    "test:headed": "playwright test --headed",
-    "test:smoke": "playwright test --grep @smoke",
-    "test:auth": "playwright test --grep @auth",
-    "test:health": "playwright test --grep @health",
+    "bdd:generate": "bddgen",
+    "test": "bddgen && playwright test",
+    "test:headed": "bddgen && playwright test --headed",
+    "test:smoke": "bddgen && playwright test --grep @smoke",
+    "test:auth": "bddgen && playwright test --grep @auth",
+    "test:health": "bddgen && playwright test --grep @health",
     "test:report": "playwright show-report playwright-report",
     "typecheck": "tsc --noEmit"
   },

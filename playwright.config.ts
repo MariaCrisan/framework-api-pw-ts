@@ -4,8 +4,7 @@ import { config } from './src/config/config';
 
 const testDir = defineBddConfig({
   features: 'features/**/*.feature',
-  steps: 'features/steps/**/*.ts',
-  importTestFrom: { file: 'src/fixtures/api-fixtures.ts', varName: 'test' }
+  steps: ['src/steps/**/*.ts', 'src/fixtures/api-fixtures.ts']
 });
 
 export default defineConfig({

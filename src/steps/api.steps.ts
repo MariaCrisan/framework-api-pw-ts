@@ -1,7 +1,7 @@
 import { createBdd } from 'playwright-bdd';
-import { config, getCredentials, isBaseUrlConfigured, isFrameworkConfigured } from '../../src/config/config';
-import { expectJsonResponse, expectResponseContains, expectResponseTimeBelow, expectStatus, expectSuccess } from '../../src/assertions/response-assertions';
-import { test } from '../../src/fixtures/api-fixtures';
+import { config, getCredentials, isBaseUrlConfigured, isFrameworkConfigured } from '../config/config';
+import { expectJsonResponse, expectResponseTimeBelow, expectStatus, expectSuccess } from '../assertions/response-assertions';
+import { test } from '../fixtures/api-fixtures';
 
 const { Given, When, Then } = createBdd(test);
 
@@ -59,7 +59,9 @@ Then('the API response time is below the configured timeout', async ({ apiScenar
 
 Then('the API response includes an authentication token', async ({ apiScenario }) => {
   requireResponse(apiScenario.response);
-  await expectResponseContains(apiScenario.response, 'accessToken'); // Map this to access_token if needed.
+  const body = await expectJsonResponse(apiScenario.response);
+  const hasToken = !Array.isArray(body) && ('accessToken' in body || 'access_token' in body);
+  if (!hasToken) throw new Error('Expected an authentication token field. Map this step to the real token contract if it differs.');
 });
 
 Then('the API response does not include an authentication token', async ({ apiScenario }) => {
