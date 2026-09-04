@@ -1,5 +1,2 @@
 import { expect } from '@playwright/test';
-
-export function expectDefined<T>(value: T | undefined | null, label: string): asserts value is T {
-  expect(value, `${label} should be defined`).toBeTruthy();
-}
+export const expectDefined = (value: unknown, name: string) => expect(value, `${name} should be defined`).toBeTruthy();

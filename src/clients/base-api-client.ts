@@ -1,54 +1,39 @@
 import type { APIRequestContext, APIResponse } from '@playwright/test';
-import type { AuthenticationProvider } from '../auth/authentication-provider';
-import { config, type FrameworkConfig } from '../config/config';
-import type { TypedApiResponse } from '../models/responses/api-response';
-import { logger, type Logger } from '../utils/logger';
+import type { FrameworkConfig } from '../config/config';
+import type { Logger } from '../utils/logger';
+import { safeJson } from '../utils/masking';
 
-export interface ApiRequestOptions {
-  data?: unknown;
-  headers?: Record<string, string>;
-  params?: Record<string, string | number | boolean>;
-}
-
-export class ApiRequestError extends Error {
-  constructor(message: string, public readonly cause?: unknown) { super(message); }
-}
+export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+export interface RequestOptions { headers?: Record<string, string>; data?: unknown; params?: Record<string, string | number | boolean>; }
+export interface ApiResult { response: APIResponse; method: HttpMethod; endpoint: string; requestId: string; durationMs: number; }
 
 export class BaseApiClient {
   constructor(
-    protected readonly request: APIRequestContext,
-    protected readonly frameworkConfig: Readonly<FrameworkConfig> = config,
-    private readonly authentication?: AuthenticationProvider,
-    private readonly requestLogger: Logger = logger
+    private readonly request: APIRequestContext,
+    protected readonly config: FrameworkConfig,
+    private readonly logger: Logger,
+    private readonly token?: string,
   ) {}
 
-  get<T>(path: string, options?: ApiRequestOptions): Promise<TypedApiResponse<T>> { return this.send('GET', path, options); }
-  post<T>(path: string, options?: ApiRequestOptions): Promise<TypedApiResponse<T>> { return this.send('POST', path, options); }
-  put<T>(path: string, options?: ApiRequestOptions): Promise<TypedApiResponse<T>> { return this.send('PUT', path, options); }
-  patch<T>(path: string, options?: ApiRequestOptions): Promise<TypedApiResponse<T>> { return this.send('PATCH', path, options); }
-  delete<T>(path: string, options?: ApiRequestOptions): Promise<TypedApiResponse<T>> { return this.send('DELETE', path, options); }
+  get(endpoint: string, options?: Omit<RequestOptions, 'data'>): Promise<ApiResult> { return this.send('GET', endpoint, options); }
+  post(endpoint: string, data?: unknown, options?: Omit<RequestOptions, 'data'>): Promise<ApiResult> { return this.send('POST', endpoint, { ...options, data }); }
+  put(endpoint: string, data?: unknown, options?: Omit<RequestOptions, 'data'>): Promise<ApiResult> { return this.send('PUT', endpoint, { ...options, data }); }
+  patch(endpoint: string, data?: unknown, options?: Omit<RequestOptions, 'data'>): Promise<ApiResult> { return this.send('PATCH', endpoint, { ...options, data }); }
+  delete(endpoint: string, options?: Omit<RequestOptions, 'data'>): Promise<ApiResult> { return this.send('DELETE', endpoint, options); }
 
-  private async send<T>(method: string, path: string, options: ApiRequestOptions = {}): Promise<TypedApiResponse<T>> {
+  private async send(method: HttpMethod, endpoint: string, options: RequestOptions = {}): Promise<ApiResult> {
     const requestId = crypto.randomUUID();
-    const headers = this.authentication?.apply({ 'Content-Type': 'application/json', 'X-Request-ID': requestId, ...options.headers })
-      ?? { 'Content-Type': 'application/json', 'X-Request-ID': requestId, ...options.headers };
-    const startedAt = Date.now();
-    this.requestLogger.debug('API request', { method, endpoint: path, requestId });
+    const headers = { accept: 'application/json', 'content-type': 'application/json', 'x-request-id': requestId, ...this.token ? { authorization: `${this.config.auth.tokenType} ${this.token}` } : {}, ...options.headers };
+    const start = performance.now();
+    this.logger.log('debug', 'API request', { method, endpoint, requestId, headers, data: options.data });
     try {
-      const response = await this.request.fetch(path, {
-        method,
-        data: options.data,
-        headers,
-        params: options.params,
-        timeout: this.frameworkConfig.timeout,
-        failOnStatusCode: false
-      });
-      this.requestLogger.info('API response', { method, endpoint: path, status: response.status(), durationMs: Date.now() - startedAt, requestId });
-      return response as TypedApiResponse<T>;
-    } catch (cause) {
-      const message = `Unable to connect to API. Environment: ${this.frameworkConfig.environment}; Base URL: ${this.frameworkConfig.baseUrl}; Endpoint: ${path}; Method: ${method}; Timeout: ${this.frameworkConfig.timeout}ms.`;
-      this.requestLogger.error(message, { requestId });
-      throw new ApiRequestError(message, cause);
+      const response = await this.request.fetch(endpoint, { method, headers, data: options.data, params: options.params, timeout: this.config.timeout, failOnStatusCode: false });
+      const durationMs = Math.round(performance.now() - start);
+      this.logger.log(response.ok() ? 'info' : 'warn', 'API response', { method, endpoint, requestId, status: response.status(), durationMs });
+      return { response, method, endpoint, requestId, durationMs };
+    } catch (error) {
+      this.logger.log('error', 'API request failed', { method, endpoint, requestId, durationMs: Math.round(performance.now() - start), error: error instanceof Error ? error.message : safeJson(error) });
+      throw new Error(`API ${method} ${endpoint} failed (request ID ${requestId}): ${error instanceof Error ? error.message : 'unknown network error'}`);
     }
   }
 }

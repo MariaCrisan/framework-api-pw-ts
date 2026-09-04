@@ -1,16 +1,16 @@
 {
-  "baseUrl": "https://api.example.invalid",
-  "apiVersion": "v1",
-  "timeout": 30000,
-  "expectTimeout": 5000,
+  "baseUrl": "https://postman-echo.com",
+  "apiVersion": "",
+  "timeout": 15000,
   "verifySsl": true,
-  "logLevel": "info",
-  "auth": {
-    "loginPath": "/auth/login",
-    "refreshPath": "/auth/refresh",
-    "protectedPath": "/users/me",
-    "unauthenticatedStatus": 401,
-    "invalidCredentialsStatus": 401
+  "endpoints": {
+    "health": "/get?health=ok",
+    "login": "/__replace-with-login-endpoint__",
+    "protectedResource": "/__replace-with-protected-endpoint__"
   },
-  "examplePath": "/resources"
+  "auth": {
+    "tokenField": "accessToken",
+    "tokenType": "Bearer",
+    "enabled": false
+  }
 }

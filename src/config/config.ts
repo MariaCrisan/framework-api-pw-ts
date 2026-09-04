@@ -1,24 +1,28 @@
-import { loadConfig, type FrameworkConfig } from './config-loader';
-export type { FrameworkConfig } from './config-loader';
-
-export const config: Readonly<FrameworkConfig> = Object.freeze(loadConfig());
-
-/** True after a real API host has replaced the checked-in safe placeholder. */
-export function isBaseUrlConfigured(): boolean {
-  return !config.baseUrl.includes('.invalid');
+export interface EndpointConfig {
+  health: string;
+  login: string;
+  protectedResource: string;
 }
 
-/** True only after a real endpoint and test credentials have been supplied. */
-export function isFrameworkConfigured(): boolean {
-  return isBaseUrlConfigured() && Boolean(process.env.API_USERNAME && process.env.API_PASSWORD);
+export interface AuthenticationConfig {
+  enabled: boolean;
+  tokenField: string;
+  tokenType: string;
 }
 
-export interface Credentials { username: string; password: string; }
-
-export function getCredentials(): Credentials {
-  const { API_USERNAME: username, API_PASSWORD: password } = process.env;
-  if (!username || !password) {
-    throw new Error('API_USERNAME and API_PASSWORD must be provided through the environment or CI secret store.');
-  }
-  return { username, password };
+export interface FrameworkConfig {
+  environment: string;
+  baseUrl: string;
+  apiVersion: string;
+  timeout: number;
+  verifySsl: boolean;
+  endpoints: EndpointConfig;
+  auth: AuthenticationConfig;
+  credentials: {
+    username?: string;
+    password?: string;
+    clientId?: string;
+    clientSecret?: string;
+    apiKey?: string;
+  };
 }

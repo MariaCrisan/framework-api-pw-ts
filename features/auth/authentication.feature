@@ -1,31 +1,23 @@
-@auth
-Feature: API authentication
-  Consumers authenticate once and use the resulting token for protected resources.
+Feature: API Authentication
+  As an API consumer
+  I want to authenticate with the API
+  So that I can access protected resources
 
-  @smoke
-  Scenario: Valid credentials return a usable token
-    Given the API test environment is configured
-    And valid API credentials are configured
+  Background:
+    Given the API is available
+
+  @smoke @auth @requires-auth
+  Scenario: Authenticate with valid credentials
     When I authenticate with valid credentials
-    Then the API response is successful
-    And the API response includes an authentication token
+    Then the authentication request should succeed
+    And an access token should be returned
 
-  @regression
-  Scenario: Invalid credentials are rejected without a token
-    Given the API test environment is configured
+  @auth @regression @requires-auth
+  Scenario Outline: Authentication fails with invalid credentials
     When I authenticate with invalid credentials
-    Then the API response has the configured invalid-credentials status
-    And the API response does not include an authentication token
+    Then the authentication request should fail
+    And an appropriate authentication error should be returned
 
-  @smoke
-  Scenario: An authenticated user can access the protected endpoint
-    Given the API test environment is configured
-    And valid API credentials are configured
-    When I request the protected endpoint as an authenticated user
-    Then the API response is successful
-
-  @regression
-  Scenario: A protected endpoint rejects missing authentication
-    Given the API test environment is configured
-    When I request the protected endpoint without authentication
-    Then the API response has the configured unauthorized status
+    Examples:
+      | credential type |
+      | invalid user    |

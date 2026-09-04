@@ -1,43 +1,31 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { getEnvironmentName, type EnvironmentName } from './environment';
+import { config as loadDotEnv } from 'dotenv';
+import { type FrameworkConfig } from './config';
+import { isEnvironment } from './environment';
 
-export type LogLevel = 'error' | 'warn' | 'info' | 'debug';
+loadDotEnv({ quiet: true });
 
-export interface AuthConfig {
-  loginPath: string;
-  refreshPath?: string;
-  protectedPath: string;
-  unauthenticatedStatus: number;
-  invalidCredentialsStatus: number;
-}
-
-export interface FrameworkConfig {
-  environment: EnvironmentName;
-  baseUrl: string;
-  apiVersion: string;
-  timeout: number;
-  expectTimeout: number;
-  verifySsl: boolean;
-  logLevel: LogLevel;
-  auth: AuthConfig;
-  examplePath: string;
-}
-
-type ConfigFile = Omit<FrameworkConfig, 'environment'>;
-
-export function loadConfig(): FrameworkConfig {
-  const environment = getEnvironmentName();
-  const file = resolve(process.cwd(), 'config', `${environment}.json`);
-  let raw: ConfigFile;
-  try {
-    raw = JSON.parse(readFileSync(file, 'utf-8')) as ConfigFile;
-  } catch (error) {
-    throw new Error(`Unable to load configuration for "${environment}" from ${file}: ${String(error)}`);
+export function loadConfiguration(): FrameworkConfig {
+  const requestedEnvironment = process.env.TEST_ENV ?? 'local';
+  if (!isEnvironment(requestedEnvironment)) {
+    throw new Error(`Unsupported TEST_ENV '${requestedEnvironment}'. Use local, dev, test, or staging.`);
   }
 
-  if (!raw.baseUrl || !raw.auth?.loginPath || !raw.auth?.protectedPath) {
-    throw new Error(`Configuration for "${environment}" is missing a required API URL or authentication path.`);
-  }
-  return { ...raw, environment };
+  const file = resolve(process.cwd(), 'config', `${requestedEnvironment}.json`);
+  if (!existsSync(file)) throw new Error(`Configuration file not found: ${file}`);
+  const raw = JSON.parse(readFileSync(file, 'utf8')) as Omit<FrameworkConfig, 'environment' | 'credentials'>;
+  if (!raw.baseUrl || !raw.endpoints?.health) throw new Error(`Configuration '${requestedEnvironment}' requires baseUrl and endpoints.health.`);
+
+  return {
+    ...raw,
+    environment: requestedEnvironment,
+    credentials: {
+      username: process.env.API_USERNAME,
+      password: process.env.API_PASSWORD,
+      clientId: process.env.CLIENT_ID,
+      clientSecret: process.env.CLIENT_SECRET,
+      apiKey: process.env.API_KEY,
+    },
+  };
 }

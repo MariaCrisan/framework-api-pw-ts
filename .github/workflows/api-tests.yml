@@ -9,7 +9,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     env:
-      TEST_ENV: test
+      # Baseline health test uses local.json. Switch to test after replacing its placeholders.
+      TEST_ENV: local
       API_USERNAME: ${{ secrets.API_USERNAME }}
       API_PASSWORD: ${{ secrets.API_PASSWORD }}
     steps:

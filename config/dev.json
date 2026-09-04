@@ -1,10 +1,8 @@
 {
-  "baseUrl": "https://api.example.invalid",
-  "apiVersion": "v1",
-  "timeout": 30000,
-  "expectTimeout": 5000,
+  "baseUrl": "https://replace-with-dev-api.example.com",
+  "apiVersion": "",
+  "timeout": 15000,
   "verifySsl": true,
-  "logLevel": "info",
-  "auth": { "loginPath": "/auth/login", "refreshPath": "/auth/refresh", "protectedPath": "/users/me", "unauthenticatedStatus": 401, "invalidCredentialsStatus": 401 },
-  "examplePath": "/resources"
+  "endpoints": { "health": "/health", "login": "/auth/login", "protectedResource": "/users/me" },
+  "auth": { "tokenField": "accessToken", "tokenType": "Bearer", "enabled": true }
 }

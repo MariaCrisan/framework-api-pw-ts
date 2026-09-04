@@ -1,21 +1,27 @@
 {
-  "name": "playwright-api-test-framework",
+  "name": "api-test-framework",
   "version": "1.0.0",
   "private": true,
-  "description": "A composable TypeScript and Playwright API test framework skeleton.",
+  "description": "BDD API test automation framework using TypeScript, Playwright and playwright-bdd.",
   "scripts": {
-    "test": "playwright test",
-    "test:headed": "playwright test --headed",
-    "test:smoke": "playwright test --grep @smoke",
-    "test:auth": "playwright test --grep @auth",
-    "test:health": "playwright test --grep @health",
-    "test:report": "playwright show-report playwright-report",
-    "typecheck": "tsc --noEmit"
+    "setup": "npm ci",
+    "bdd:gen": "bddgen test",
+    "test": "npm run bdd:gen && playwright test",
+    "test:smoke": "npm run bdd:gen && playwright test --grep @smoke",
+    "test:auth": "npm run bdd:gen && playwright test --grep @auth",
+    "test:health": "npm run bdd:gen && playwright test --grep @health",
+    "test:regression": "npm run bdd:gen && playwright test --grep @regression",
+    "test:headed": "npm run bdd:gen && playwright test --headed",
+    "report": "playwright show-report playwright-report",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf .features-gen playwright-report test-results"
   },
   "devDependencies": {
-    "@playwright/test": "^1.57.0",
-    "@types/node": "^22.10.5",
-    "playwright-bdd": "^9.2.0",
-    "typescript": "^5.7.2"
+    "@playwright/test": "1.62.1",
+    "@types/node": "24.10.4",
+    "dotenv": "16.6.1",
+    "playwright-bdd": "9.2.0",
+    "rimraf": "6.1.2",
+    "typescript": "5.9.3"
   }
 }

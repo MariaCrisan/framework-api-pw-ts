@@ -1,15 +1,8 @@
-import { BaseApiClient } from './base-api-client';
-import type { LoginRequest, RefreshTokenRequest } from '../models/requests/auth';
-import type { LoginResponse } from '../models/responses/auth';
-import type { TypedApiResponse } from '../models/responses/api-response';
+import type { FrameworkConfig } from '../config/config';
+import type { LoginRequest } from '../models/requests/login-request';
+import type { ApiResult, BaseApiClient } from './base-api-client';
 
-export class AuthClient extends BaseApiClient {
-  login(credentials: LoginRequest): Promise<TypedApiResponse<LoginResponse>> {
-    return this.post(this.frameworkConfig.auth.loginPath, { data: credentials });
-  }
-  refresh(refreshToken: string): Promise<TypedApiResponse<LoginResponse>> {
-    if (!this.frameworkConfig.auth.refreshPath) throw new Error('No auth.refreshPath is configured.');
-    const data: RefreshTokenRequest = { refreshToken };
-    return this.post(this.frameworkConfig.auth.refreshPath, { data });
-  }
+export class AuthClient {
+  constructor(private readonly api: BaseApiClient, private readonly config: FrameworkConfig) {}
+  login(credentials: LoginRequest): Promise<ApiResult> { return this.api.post(this.config.endpoints.login, credentials); }
 }

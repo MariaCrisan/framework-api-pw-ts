@@ -5,10 +5,9 @@
     "moduleResolution": "NodeNext",
     "strict": true,
     "esModuleInterop": true,
-    "resolveJsonModule": true,
-    "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
     "types": ["node", "@playwright/test"]
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts", "playwright.config.ts"]
+  "include": ["src/**/*.ts", "steps/**/*.ts", "playwright.config.ts", "playwright-bdd.config.ts"]
 }

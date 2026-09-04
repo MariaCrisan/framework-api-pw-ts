@@ -1,119 +1,112 @@
-# Playwright API Test Framework
+# TypeScript + Playwright BDD API framework
 
-A small, composable TypeScript foundation for API tests using Playwright's native `APIRequestContext`. It deliberately includes only representative health and authentication tests; replace the clearly marked endpoint placeholders with the real API contract.
+A production-oriented starting point for API automation with TypeScript, Playwright Test and `playwright-bdd`. Gherkin expresses the API behaviour; reusable framework code owns HTTP, authentication, configuration, diagnostics, and assertions. It deliberately contains only a small baseline suite.
 
-## Quick start
+> **Contract placeholders:** `config/local.json` points health checks to the public Postman Echo service so the baseline health examples run. Login and protected-resource endpoints in every configuration are placeholders until mapped to the target API. Authentication scenarios are tagged `@requires-auth` and are transparently skipped while `auth.enabled` is `false`; they are never simulated as passing.
+
+## Architecture
+
+```text
+Feature (.feature)
+        ↓
+Thin step definition
+        ↓
+Scenario-scoped Playwright BDD fixture + testContext
+        ↓
+AuthManager / endpoint client / response assertion
+        ↓
+BaseApiClient
+        ↓
+Playwright APIRequestContext
+        ↓
+API
+```
+
+`playwright-bdd` discovers the feature and step files, and `bddgen test` emits disposable Playwright specifications in `.features-gen/`. Playwright Test runs those generated files, including parallel scheduling, retries, HTML/JUnit reporting, traces, and tag filtering. Do not edit `.features-gen`.
+
+## Layout
+
+```text
+features/                 business-readable Gherkin specifications
+steps/                    thin reusable Given/When/Then bindings
+src/clients/              BaseApiClient and endpoint clients
+src/auth/                 provider, manager, and scenario token store
+src/assertions/           Playwright expect-based API helpers
+src/config/ + config/     typed loader and local/dev/test/staging JSON
+src/fixtures/             test-scoped BDD fixtures and ScenarioContext
+src/models/               request and response contracts
+src/test-data/            static data and factories
+src/utils/                logging, masking, serialization, random data
+```
+
+## Install and configure
 
 ```bash
 npm install
 npx playwright install
-npm run typecheck
-npm test
+copy .env.example .env
 ```
 
-The checked-in configurations use `https://api.example.invalid`, so the sample tests intentionally **skip** until a real endpoint is supplied; authentication examples also require `API_USERNAME`/`API_PASSWORD`. This lets a fresh clone compile and run safely without pretending an API exists. `.env.example` documents the required secret names; export them in the shell or inject them from CI (this skeleton deliberately avoids a dotenv dependency).
+Set `TEST_ENV` to `local`, `dev`, `test`, or `staging`. The loader is the only layer that reads environment variables; steps and clients use the typed `configuration` fixture. Secrets belong in environment variables (or CI secrets), never feature files or JSON configuration:
 
-```powershell
-$env:TEST_ENV = 'staging'
-$env:API_USERNAME = 'test-user'
-$env:API_PASSWORD = 'secret-from-vault'
-npm test
+```text
+API_USERNAME, API_PASSWORD, CLIENT_ID, CLIENT_SECRET, API_KEY
 ```
 
-Common commands:
+For a real target, replace the endpoint placeholders in the selected `config/<environment>.json`, set `auth.enabled` to `true`, and align `auth.tokenField` / `auth.tokenType` with its contract. Configuration is loaded once per scenario fixture so process variables are not read by tests or steps directly.
+
+## Run
 
 ```bash
 npm test
 npm run test:smoke
 npm run test:auth
 npm run test:health
-npm run test:report
+npm run test:regression
+TEST_ENV=staging npm test
+npm run report
 ```
 
-## Layout
+On PowerShell, select an environment with `$env:TEST_ENV='staging'; npm test`. The `test:*` commands generate BDD files before invoking Playwright. HTML output is in `playwright-report/`; JUnit XML is `test-results/junit.xml`.
 
-```text
-config/                  Non-secret per-environment settings (local, dev, test, staging)
-src/config/              Validated configuration access; tests never read process.env
-src/clients/             Base HTTP wrapper and endpoint-focused clients
-src/auth/                Authentication providers, token cache, and login lifecycle
-src/assertions/          Reusable response assertions with safe diagnostics
-src/fixtures/            Playwright fixtures that compose clients for each test
-src/models/              Request and response contracts
-src/test-data/           Replaceable static/factory-style test data
-src/utils/               Masking, logging, serialization, and random data
-tests/                   Small health, authentication, and usage examples
-```
+Playwright retries failed scenarios only in CI (`retries: 2`). This is test-level retry; the framework intentionally does not perform broad HTTP retries, which could hide functional failures. Set workers through Playwright as needed; the configuration uses full parallel execution.
 
-`BaseApiClient` owns common headers, request IDs, timeout, error context, and request/response metadata logging. `AuthClient`, `UserClient`, and `ExampleClient` own endpoint paths and API-specific method names. Tests stay focused on behavior and assertions rather than URLs or `APIRequestContext` details.
+## Authentication and scenario isolation
 
-## Configuration and secrets
+`Given I am authenticated` invokes `AuthManager`, which delegates to the bearer-token `AuthenticationProvider`, `AuthClient`, and then `BaseApiClient`. The result is held by a `TokenManager` that is created for one scenario only. `authenticatedClient` resolves that token at request time. There is no mutable module-level scenario state, cached token shared among workers, or order dependency. This makes independent users and parallel scenarios safe by default.
 
-Set `TEST_ENV` to `local`, `dev`, `test`, or `staging`; it selects `config/<environment>.json`. These files may contain non-secret operational settings such as `baseUrl`, API version, SSL behavior, timeouts, endpoint paths, and expected unauthorized statuses. Environment variables supply credentials only through `getCredentials()` in the configuration layer. `.env` is ignored and `.env.example` contains placeholders only.
+The bearer implementation is intentionally an extension point: add an `AuthenticationProvider` for API keys, OAuth/client credentials, basic authentication, or refresh flow without changing Gherkin or endpoint clients.
 
-Before enabling a real environment, replace these placeholders:
+## Logs, errors, and security
 
-| Setting | Placeholder to replace |
-| --- | --- |
-| API host | `https://api.example.invalid` |
-| Login endpoint | `/auth/login` |
-| Refresh endpoint | `/auth/refresh` |
-| Protected endpoint | `/users/me` |
-| Health endpoint | `/health` in `tests/health/health.spec.ts` |
-| Example collection | `/resources` |
-| Token JSON shape | `accessToken`, `expiresIn`, `refreshToken` (or mapped snake_case alternatives) |
-| Authentication failure statuses | `auth.invalidCredentialsStatus`, `auth.unauthenticatedStatus` |
+Every request has a UUID request ID and emits method, endpoint, status, duration, and ID. `Authorization`, token, password, client-secret, and API-key fields are masked recursively before logging or assertion diagnostics. Failed assertions show safely serialized response diagnostics with endpoint and request ID. Use `LOG_LEVEL=debug` for request diagnostics; tokens are still masked. Playwright traces are retained only on failure.
 
-If your login body, health response, headers, or token fields differ, update `LoginRequest`, `LoginResponse`, `AuthClient`, and the example expectations to match the contract.
+## Extending the suite
 
-## Authentication lifecycle
-
-Each test receives its own `AuthManager` and `TokenManager`. On the first authenticated request, the manager uses the secret-backed credentials to log in, caches the token only in that fixture instance, and provides a `BearerTokenAuthenticationProvider`. A valid cached token is reused; if it is expired and a refresh token/path exists, it attempts refresh before logging in again. The cache is not global and is discarded after the test, so workers cannot overwrite one another's tokens. `ApiKeyAuthenticationProvider` shows how another scheme can be added without changing tests or the base client.
-
-## Fixtures and parallel execution
-
-Import `test` from `src/fixtures/api-fixtures`. It supplies `apiClient`, `authClient`, `authManager`, `userClient`, `exampleClient`, and `authenticatedClient`. Fixtures perform setup only; business assertions remain in test files. Playwright runs tests fully in parallel, and all stateful objects (especially token caches) are fixture/test-scoped. Do not add mutable module-level data or execution-order dependencies.
+To add an endpoint, first define meaningful contracts under `src/models/requests` and `src/models/responses`, then add a focused endpoint client. For example:
 
 ```ts
-import { test } from '../src/fixtures/api-fixtures';
-import { expectSuccess } from '../src/assertions/response-assertions';
-
-test('profile is available', { tag: ['@auth', '@smoke'] }, async ({ authenticatedClient }) => {
-  const response = await authenticatedClient.get('/users/me');
-  await expectSuccess(response);
-});
-```
-
-## Adding an API client and test
-
-1. Add meaningful request/response interfaces under `src/models/`.
-2. Add an endpoint-focused client extending `BaseApiClient`.
-3. Add a fixture only when it makes test setup simpler.
-4. Add test data under `src/test-data/` and a tagged spec under `tests/`.
-5. Run `npm run typecheck` and the appropriate tagged command.
-
-```ts
-// src/clients/user-client.ts
-class UserClient extends BaseApiClient {
-  getUser(id: string) {
-    return this.get<UserResponse>(`/users/${encodeURIComponent(id)}`);
-  }
+export class UserClient {
+  constructor(private readonly api: BaseApiClient) {}
+  getProfile() { return this.api.get('/users/me'); }
 }
 ```
 
-```ts
-test('user can be retrieved', { tag: ['@regression'] }, async ({ userClient }) => {
-  const response = await userClient.getUser('123');
-  await expectSuccess(response);
-});
+Expose the client through `src/fixtures/api-fixtures.ts` if multiple steps require it. Reuse an existing behavior-level step where it fits; otherwise add a short binding in the relevant file under `steps/` that calls the fixture/client and records its result in `testContext`.
+
+Then create `features/users/users.feature` with behavior-focused language and an appropriate tag:
+
+```gherkin
+@regression
+Feature: User profile
+  Scenario: Authenticated user reads their profile
+    Given I am authenticated
+    When I view my profile
+    Then the request should succeed
 ```
 
-## Logging, diagnostics, and security
+Add `When I view my profile` only if no existing reusable action communicates that behavior. Do not put URLs, headers, credentials, or JSON serialization in Gherkin. Do not create generic steps that obscure the operation being tested.
 
-The logger records method, endpoint, status, duration, and correlation ID. It does not log request/response bodies by default. Any diagnostics that do include response content pass through recursive masking; authorization, cookies, passwords, client secrets, access/refresh tokens, and API keys are redacted. Never put credentials in config JSON, test names, expected strings, or CI logs.
+## CI/CD
 
-Playwright produces an HTML report and JUnit XML at `test-results/junit.xml`; traces are retained for failures. Test retries are Playwright-level retries (two in CI), which rerun a failed test. This skeleton deliberately has no HTTP retry policy; add one later only for identified transient endpoints and make it configurable.
-
-## CI
-
-The GitHub Actions workflow installs dependencies, runs type checking and the suite, and uploads the HTML report. Add `API_USERNAME` and `API_PASSWORD` as repository secrets, configure `config/test.json` with the non-secret test endpoint details, then run with `TEST_ENV=test npm test`. The project is headless by default and needs no browser-specific test code for API requests.
+The GitHub Actions workflow installs exact lockfile dependencies, type-checks, runs the suite headlessly, and uploads the HTML report. Store credentials as repository secrets and set the selected environment configuration to the real CI API before enabling auth scenarios. A CI test run uses Playwright retries; local runs do not.

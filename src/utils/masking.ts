@@ -1,19 +1,14 @@
-const SENSITIVE_KEYS = new Set([
-  'authorization', 'cookie', 'set-cookie', 'password', 'clientsecret',
-  'accesstoken', 'refreshtoken', 'apikey', 'token'
-]);
+const sensitiveKey = /authorization|access[_-]?token|refresh[_-]?token|client[_-]?secret|password|api[_-]?key/i;
 
-export function maskSensitive(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(maskSensitive);
+export function maskValue(value: unknown): unknown {
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value)) return value.map(maskValue);
   if (value && typeof value === 'object') {
-    return Object.fromEntries(Object.entries(value).map(([key, entry]) => [
-      key,
-      SENSITIVE_KEYS.has(key.toLowerCase()) ? '[REDACTED]' : maskSensitive(entry)
-    ]));
+    return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, sensitiveKey.test(key) ? '***MASKED***' : maskValue(item)]));
   }
   return value;
 }
 
-export function maskText(value: string): string {
-  return value.replace(/(authorization|password|clientSecret|accessToken|refreshToken|apiKey)(["'=:\s]+)([^,\s"'}]+)/gi, '$1$2[REDACTED]');
+export function safeJson(value: unknown): string {
+  try { return JSON.stringify(maskValue(value)); } catch { return '[unserializable value]'; }
 }

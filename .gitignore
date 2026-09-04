@@ -1,8 +1,8 @@
 node_modules/
+.npm-cache/
+.env
+.features-gen/
 playwright-report/
 test-results/
-.features-gen/
-.env
-.env.*
-!.env.example
+blob-report/
 *.log

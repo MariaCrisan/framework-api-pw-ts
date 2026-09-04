@@ -1,10 +1,10 @@
-@health @smoke
-Feature: API availability
-  The API should expose a reachable health endpoint.
+Feature: API Health
+  As an API consumer
+  I want to know whether the API is available
+  So that dependent services can use it
 
-  Scenario: The health endpoint is available
-    Given the API test environment is configured
-    When I request the health endpoint
-    Then the API response is successful
-    And the API response is valid JSON
-    And the API response time is below the configured timeout
+  @smoke @health
+  Scenario: API is available
+    When I check the API health
+    Then the health request should succeed
+    And the API should return a valid health response

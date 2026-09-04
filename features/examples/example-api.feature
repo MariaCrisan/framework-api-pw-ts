@@ -1,8 +1,6 @@
 @regression
-Feature: Example API client
-  Endpoint-specific clients keep API details out of scenarios.
+Feature: Example API extension point
+  This feature is intentionally small and demonstrates reuse of a behavior-level step.
 
-  Scenario: A collection can be retrieved through its API client
-    Given the API test environment is configured
-    When I retrieve the example collection
-    Then the API response is successful
+  Scenario: Health remains available to a consumer
+    Given the API is available

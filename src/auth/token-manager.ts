@@ -1,14 +1,10 @@
-export interface TokenState { accessToken: string; refreshToken?: string; expiresAt: number; }
+export interface Token { accessToken: string; tokenType: string; expiresAt?: number; refreshToken?: string; }
 
-/** A fixture-owned cache. It is never shared across Playwright workers or tests. */
+/** Scenario-scoped token store. It is intentionally never shared between workers. */
 export class TokenManager {
-  private state?: TokenState;
-  get validToken(): string | undefined {
-    return this.state && this.state.expiresAt > Date.now() + 30_000 ? this.state.accessToken : undefined;
-  }
-  get refreshToken(): string | undefined { return this.state?.refreshToken; }
-  set(accessToken: string, expiresInSeconds?: number, refreshToken?: string): void {
-    this.state = { accessToken, refreshToken, expiresAt: Date.now() + (expiresInSeconds ?? 300) * 1000 };
-  }
-  clear(): void { this.state = undefined; }
+  private token?: Token;
+  set(token: Token): void { this.token = token; }
+  get(): Token | undefined { return this.token; }
+  accessToken(): string | undefined { return this.token && (!this.token.expiresAt || this.token.expiresAt > Date.now()) ? this.token.accessToken : undefined; }
+  clear(): void { this.token = undefined; }
 }

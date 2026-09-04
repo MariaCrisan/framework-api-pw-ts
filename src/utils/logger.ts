@@ -1,20 +1,12 @@
-import type { LogLevel } from '../config/config-loader';
-import { config } from '../config/config';
-import { safeJson } from './serialization';
+import { safeJson } from './masking';
 
-const priority: Record<LogLevel, number> = { error: 0, warn: 1, info: 2, debug: 3 };
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+export interface Logger { log(level: LogLevel, event: string, data?: Record<string, unknown>): void; }
 
-export class Logger {
-  constructor(private readonly level: LogLevel = config.logLevel) {}
-  private write(level: LogLevel, message: string, details?: unknown): void {
-    if (priority[level] > priority[this.level]) return;
-    const suffix = details === undefined ? '' : ` ${safeJson(details)}`;
-    console[level === 'debug' ? 'log' : level](`[api] ${message}${suffix}`);
+export class ConsoleLogger implements Logger {
+  constructor(private readonly context = 'api') {}
+  log(level: LogLevel, event: string, data: Record<string, unknown> = {}): void {
+    if (level === 'debug' && process.env.LOG_LEVEL !== 'debug') return;
+    console.log(`[${new Date().toISOString()}] ${level.toUpperCase()} [${this.context}] ${event} ${safeJson(data)}`);
   }
-  error(message: string, details?: unknown): void { this.write('error', message, details); }
-  warn(message: string, details?: unknown): void { this.write('warn', message, details); }
-  info(message: string, details?: unknown): void { this.write('info', message, details); }
-  debug(message: string, details?: unknown): void { this.write('debug', message, details); }
 }
-
-export const logger = new Logger();

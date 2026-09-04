@@ -1,6 +1,1 @@
-import { randomEmail, randomUsername } from '../utils/random-data';
-
-export const validUserTemplate = () => ({
-  username: randomUsername(),
-  email: randomEmail()
-});
+export const invalidCredentials = { username: 'invalid-user', password: 'invalid-password' };
